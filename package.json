@@ -15,7 +15,11 @@
     "testEnvironment": "node"
   },
   "peerDependencies": {
+<<<<<<< HEAD
     "typescript": "~3.8.3",
+=======
+    "typescript": "^3.7.4",
+>>>>>>> bcad9e7 (Update typescript to 3.7.4)
     "webpack": "^4.29.1"
   },
   "devDependencies": {
@@ -44,7 +48,11 @@
     "postscribe": "^2.0.8",
     "source-map": "^0.6.1",
     "ts-loader": "^5.3.3",
+<<<<<<< HEAD
     "typescript": "~3.8.3",
+=======
+    "typescript": "~3.7.4",
+>>>>>>> bcad9e7 (Update typescript to 3.7.4)
     "webpack": "^4.29.1"
   },
   "dependencies": {
