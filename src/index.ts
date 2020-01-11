@@ -1,6 +1,8 @@
 import fs from "fs-extra";
 import * as path from "path";
 import { getOptions, OptionObject } from "loader-utils";
+import validateOptions = require("schema-utils");
+
 import tsickle = require("tsickle");
 import ts, { Diagnostic } from "typescript";
 import { EOL } from "os";
@@ -141,18 +143,37 @@ const tsickleLoader: webpack.loader.Loader = function(
       handleDiagnostics(this, [warning], diagnosticsHost, "warning")
   };
 
-  const jsFiles = new Map<string, string>();
+  let transpiledSources: string[] = [];
+  let transpiledSourceMaps: string[] = [];
 
   const output = tsickle.emit(
       program,
       tsickleHost,
-      (path: string, contents: string) => jsFiles.set(path, contents)
+      (jsFileName: string, contents: string, _writeByteOrderMark: boolean, _onError, tsSourceFiles) => {
+        for (const source of tsSourceFiles ?? []) {
+          if (source.fileName === sourceFileName) {
+            if (jsFileName.endsWith('.map')) {
+              transpiledSourceMaps.push(contents);
+            } else {
+              transpiledSources.push(contents);
+            }
+          }
+        }
+      },
+      program.getSourceFile(sourceFileName)
   );
 
-  const sourceFileAsJs = tsToJS(sourceFileName);
-  for (const [path, source] of jsFiles) {
-    if (sourceFileAsJs.indexOf(path) === -1) {
-      continue;
+  if (transpiledSources.length !== 1) {
+    this.emitError(
+        Error(`missing compiled result for source file: ${sourceFileName}`)
+    );
+    return;
+  }
+  if (this.sourceMap && transpiledSourceMaps.length !== 1) {
+    this.emitError(
+        Error(`tsconfig must specify sourceMap: "true" when sourcemaps are enabled!`)
+    );
+    return;
   }
   
     const tsPathName = jsToTS(path);
@@ -167,9 +188,11 @@ const tsickleLoader: webpack.loader.Loader = function(
     return fixed;
   }
 
-  this.emitError(
-    Error(`missing compiled result for source file: ${sourceFileName}`)
-  );
+  let sourceMap: RawSourceMap|undefined = undefined;
+  if (this.sourceMap) {
+    sourceMap = JSON.parse(transpiledSourceMaps[0]);
+  }
+  this.callback(null, fixCode(transpiledSources[0]), sourceMap);
 };
 
 export default tsickleLoader;
