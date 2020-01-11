@@ -1,7 +1,6 @@
 import fs from "fs-extra";
 import * as path from "path";
 import { getOptions, OptionObject } from "loader-utils";
-import validateOptions = require("schema-utils");
 import tsickle = require("tsickle");
 import ts, { Diagnostic } from "typescript";
 import { EOL } from "os";
@@ -15,21 +14,21 @@ const DEFAULT_EXTERN_DIR = "dist/externs";
 const EXTERNS_FILE_NAME = "externs.js";
 const DEFAULT_CONFIG_FILE = "tsconfig.json";
 
-const optionsSchema = {
-  type: "object",
+const optionsSchema: JSONSchema7 = {
+  type: 'object',
   properties: {
     tsconfig: {
       anyOf: [
         {
-          type: "string"
+          type: 'string'
         },
         {
-          type: "boolean"
+          type: 'boolean'
         }
       ]
     },
     externDir: {
-      type: "string"
+      type: 'string'
     }
   }
 };
@@ -43,7 +42,7 @@ interface RealOptions extends OptionObject {
 
 const setup = (loaderCTX: webpack.loader.LoaderContext): RealOptions => {
   const options = getOptions(loaderCTX);
-  validateOptions(optionsSchema, options, LOADER_NAME);
+  validateOptions(optionsSchema, options, {name: LOADER_NAME});
 
   const externDir =
     options.externDir != null ? options.externDir : DEFAULT_EXTERN_DIR;
