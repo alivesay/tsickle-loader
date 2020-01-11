@@ -64,7 +64,7 @@ const setup = (loaderCTX: webpack.loader.LoaderContext): RealOptions => {
   const compilerConfig = ts.parseJsonConfigFileContent(
     compilerConfigFile.config,
     ts.sys,
-    ".",
+      __dirname,
     {},
     tsconfig
   );
