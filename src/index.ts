@@ -3,7 +3,7 @@ import * as path from "path";
 import { getOptions, OptionObject } from "loader-utils";
 import validateOptions = require("schema-utils");
 import tsickle = require("tsickle");
-import ts from "typescript";
+import ts, { Diagnostic } from "typescript";
 import { EOL } from "os";
 import webpack = require("webpack");
 import { fixCode, fixExtern } from "./fix-output";
@@ -115,7 +115,7 @@ const tsickleLoader: webpack.loader.Loader = function(
 
   const diagnosticsHost: ts.FormatDiagnosticsHost = {
     getNewLine: () => EOL,
-    getCanonicalFileName: fileName => fileName,
+    getCanonicalFileName: (fileName: string) => fileName,
     getCurrentDirectory: () => path.dirname(sourceFileName)
   };
 
@@ -138,27 +138,24 @@ const tsickleLoader: webpack.loader.Loader = function(
     transformTypesToClosure: true,
     typeBlackListPaths: new Set(),
     untyped: false,
-    logWarning: warning =>
+    logWarning: (warning: Diagnostic) =>
       handleDiagnostics(this, [warning], diagnosticsHost, "warning")
   };
 
   const jsFiles = new Map<string, string>();
 
-  const output = tsickle.emitWithTsickle(
-    program,
-    tsickleHost,
-    compilerHost,
-    options,
-    undefined,
-    (path: string, contents: string) => jsFiles.set(path, contents)
+  const output = tsickle.emit(
+      program,
+      tsickleHost,
+      (path: string, contents: string) => jsFiles.set(path, contents)
   );
 
   const sourceFileAsJs = tsToJS(sourceFileName);
   for (const [path, source] of jsFiles) {
     if (sourceFileAsJs.indexOf(path) === -1) {
       continue;
-    }
-
+  }
+  
     const tsPathName = jsToTS(path);
     const extern = output.externs[tsPathName];
     if (extern != null) {
