@@ -1,15 +1,14 @@
 import fs from "fs-extra";
 import * as path from "path";
 import { getOptions, OptionObject } from "loader-utils";
-import validateOptions = require("schema-utils");
-
 import tsickle = require("tsickle");
-import ts, { Diagnostic } from "typescript";
+import ts from "typescript";
 import { EOL } from "os";
 import webpack = require("webpack");
 import { fixCode, fixExtern } from "./fix-output";
-import { jsToTS, tsToJS } from "./path-utils";
-import { TcpSocketConnectOpts } from "net";
+import {RawSourceMap} from "source-map";
+import validateOptions from 'schema-utils';
+import { JSONSchema7 } from "json-schema";
 
 const LOADER_NAME = "tsickle-loader";
 const DEFAULT_EXTERN_DIR = "dist/externs";
@@ -44,7 +43,7 @@ interface RealOptions extends OptionObject {
 
 const setup = (loaderCTX: webpack.loader.LoaderContext): RealOptions => {
   const options = getOptions(loaderCTX);
-  validateOptions(optionsSchema, options, {name: LOADER_NAME});
+  //validateOptions(optionsSchema, options, {name: LOADER_NAME});
 
   const externDir =
     options.externDir != null ? options.externDir : DEFAULT_EXTERN_DIR;
@@ -116,7 +115,7 @@ const tsickleLoader: webpack.loader.Loader = function(
 
   const diagnosticsHost: ts.FormatDiagnosticsHost = {
     getNewLine: () => EOL,
-    getCanonicalFileName: (fileName: string) => fileName,
+    getCanonicalFileName: fileName => fileName,
     getCurrentDirectory: () => path.dirname(sourceFileName)
   };
 
@@ -126,26 +125,25 @@ const tsickleLoader: webpack.loader.Loader = function(
   }
 
   const tsickleHost: tsickle.TsickleHost = {
-    shouldSkipTsickleProcessing: (filename: string) =>
-      sourceFileName !== filename,
+    shouldSkipTsickleProcessing: filename => sourceFileName !== filename,
     shouldIgnoreWarningsForPath: () => false,
-    pathToModuleName: (name: string) => name,
-    fileNameToModuleId: (name: string) => name,
+    pathToModuleName: name => name,
+    fileNameToModuleId: name => name,
     options: {}, // TODO: set possible options here
-    es5Mode: true,
+    es5Mode: false,
+    rootDirsRelative: (f: string) => f,
     moduleResolutionHost: compilerHost,
     googmodule: false,
     transformDecorators: true,
     transformTypesToClosure: true,
     typeBlackListPaths: new Set(),
     untyped: false,
-    logWarning: (warning: Diagnostic) =>
+    logWarning: warning =>
       handleDiagnostics(this, [warning], diagnosticsHost, "warning")
   };
 
   let transpiledSources: string[] = [];
   let transpiledSourceMaps: string[] = [];
-
   const output = tsickle.emit(
       program,
       tsickleHost,
@@ -165,7 +163,7 @@ const tsickleLoader: webpack.loader.Loader = function(
 
   if (transpiledSources.length !== 1) {
     this.emitError(
-        Error(`missing compiled result for source file: ${sourceFileName}`)
+        Error(`missing compiled result for source file: ${sourceFileName}:${transpiledSourceMaps}`)
     );
     return;
   }
@@ -175,17 +173,10 @@ const tsickleLoader: webpack.loader.Loader = function(
     );
     return;
   }
-  
-    const tsPathName = jsToTS(path);
-    const extern = output.externs[tsPathName];
-    if (extern != null) {
-      // console.info(`appending extern for ${path} to (${externFile}) ::\n${extern}\n`);
-      fs.appendFileSync(externFile, fixExtern(extern));
-    }
 
-    const fixed = fixCode(source);
-    // console.info("FIXED CODE:: \n", fixed);
-    return fixed;
+  const extern = output.externs[sourceFileName];
+  if (extern != null) {
+    fs.appendFileSync(externFile, fixExtern(extern));
   }
 
   let sourceMap: RawSourceMap|undefined = undefined;
